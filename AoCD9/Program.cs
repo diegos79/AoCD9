@@ -10,9 +10,8 @@ namespace AOCD9
         public int PointValue { get; set; }
         public int CoordX { get; set; }
         public int CoordY { get; set; }
-        public int BasinValue { get; set; }
 
-        public int CountBasin { get; set; }
+        //public int CountBasin { get; set; }
 
         public Points(int pointValue, int coordX, int coordY)
         {
@@ -21,17 +20,22 @@ namespace AOCD9
             CoordY = coordY;
         }
 
-        public Points(int pointValue, int countBasin)
+
+        public override bool Equals(object other)
         {
-            PointValue = pointValue;
-            CountBasin = countBasin;
+            Points otherItem = other as Points;
+
+            if (otherItem == null)
+                return false;
+
+            return CoordX == otherItem.CoordX && CoordY == otherItem.CoordY;
         }
-        public Points(int pointValue, int coordX, int coordY, int basinValue)
+        public override int GetHashCode()
         {
-            PointValue = pointValue;
-            CoordX = coordX;
-            CoordY = coordY;
-            BasinValue = basinValue;
+            int hash = 13;
+            hash = (hash * 7) + CoordX.GetHashCode();
+            hash = (hash * 7) + CoordY.GetHashCode();
+            return hash;
         }
 
     }
@@ -41,7 +45,7 @@ namespace AOCD9
         public static void Main()
         {
 
-            var stringArray = ConvertInputToStringArray("sample.txt");
+            var stringArray = ConvertInputToStringArray("input.txt");
             var matrix = SetMatrix(stringArray);
             PrintMatrix(matrix);
             var lowPoints = GetLowPoints(matrix);
@@ -53,23 +57,29 @@ namespace AOCD9
                 Console.Write($"Coordinates of the Low Points {item.PointValue}: ");
                 Console.WriteLine(item.CoordX.ToString()+" "+ item.CoordY.ToString());
             }
-            var basinPoints = GetBasinPoints(matrix, lowPoints);
-            var countBasin = CountBasin(matrix, lowPoints);
+            var basinPoints = GetBasinPoints(matrix, lowPoints).Distinct().ToList();
+            var countBasin = CountBasin(matrix, lowPoints).Distinct().ToDictionary(t => t.Key, t => t.Value);
             Console.WriteLine();
+
             foreach (var item in basinPoints)
             {
-                Console.WriteLine($"Low Point Basin on lowpoint: {item.PointValue} X: {item.CoordX} Y: {item.CoordY} Basin: {item.BasinValue}");
+                Console.WriteLine($"Low Point Basin: {item.PointValue} X: {item.CoordX} Y: {item.CoordY}");
             }
 
             foreach (var item in countBasin)
             {
                 Console.WriteLine($"LowPoint {item.Key.PointValue} has a basin of ---> {item.Value} elements");
+
             }
 
-
             Console.WriteLine($"Total low basin points excluding lowpoints: {basinPoints.Count}");
-
-            
+            var top3 = countBasin.OrderByDescending(o => o.Value).Take(3).Select(x => x.Value).ToList();
+            long finalResult=1;
+            foreach (var item in top3)
+            {
+                finalResult *= item;
+            }
+            Console.WriteLine($"Final result is: \t{finalResult}");
         }
 
 
@@ -139,7 +149,7 @@ namespace AOCD9
             {
                 if (matrix[x, left] > matrix[x, y] || matrix[x, left] != 9)
                 {
-                    result.Add(new Points(matrix[xInitialState, yInitialState], x, left, matrix[x, left]));
+                    result.Add(new Points(matrix[xInitialState, yInitialState], x, left));
                     result.AddRange(GetLowPointsBasinDown(matrix,x,left));
                     result.AddRange(GetLowPointsBasinUp(matrix,x,left));
 
@@ -165,7 +175,7 @@ namespace AOCD9
             {
                 if (matrix[x, right] > matrix[x, y])
                 {
-                    result.Add(new Points(matrix[xInitialState, yInitialState], x, right, matrix[x, right]));
+                    result.Add(new Points(matrix[xInitialState, yInitialState], x, right));
                     result.AddRange(GetLowPointsBasinDown(matrix, x, right));
                     result.AddRange(GetLowPointsBasinUp(matrix, x, right));
                 }
@@ -178,7 +188,7 @@ namespace AOCD9
         public static List<Points> GetLowPointsBasinUp(int[,] matrix, int x, int y)
         {
             List<Points> result = new List<Points>();
-            var up = x - 1;
+            int up = x - 1;
             int xInitialState = x;
             int yInitialState = y;
             if (x > 0)
@@ -188,7 +198,9 @@ namespace AOCD9
             {
                 if (matrix[up, y] > matrix[x, y])
                 {
-                    result.Add(new Points(matrix[xInitialState, yInitialState], up, y, matrix[up, y])); //lowPointsBasin on the top
+                    result.Add(new Points(matrix[xInitialState, yInitialState], up, y)); //lowPointsBasin on the top
+                    result.AddRange(GetLowPointsBasinLeft(matrix, up, y));
+                    result.AddRange(GetLowPointsBasinRight(matrix, up, y));
                 }
                 if (up == 0 || x == 0) break;
                 else { up--; x--; }
@@ -199,7 +211,7 @@ namespace AOCD9
         public static List<Points> GetLowPointsBasinDown(int[,] matrix, int x, int y)
         {
             List<Points> result = new List<Points>();
-            var down = x + 1;
+            int down = x + 1;
             int xInitialState = x;
             int yInitialState = y;
             if (x < matrix.GetLength(0) - 1)
@@ -209,8 +221,9 @@ namespace AOCD9
             {
                 if (matrix[down, y] > matrix[x, y])
                 {
-                    result.Add(new Points(matrix[xInitialState, yInitialState], down, y, matrix[down, y])); //lowPointsBasin on the bottom
-                    //result.AddRange(GetLowPointsBasinLeft(matrix, down, y));
+                    result.Add(new Points(matrix[xInitialState, yInitialState], down, y)); //lowPointsBasin on the bottom
+                    result.AddRange(GetLowPointsBasinLeft(matrix, down, y));
+                    result.AddRange(GetLowPointsBasinRight(matrix, down, y));
                 }
                 if (down == matrix.GetLength(0) - 1 || x == matrix.GetLength(0) - 1) break;
                 else { down++; x++; }
@@ -224,9 +237,9 @@ namespace AOCD9
             Dictionary<Points, int> resultCount = new Dictionary<Points, int>();
             foreach (var point in lowPoints)
             {
-                var x = point.CoordX;
-                var y = point.CoordY;
-                int resultcount = result.Count;
+                int x = point.CoordX;
+                int y = point.CoordY;
+                int resultcount = result.Distinct().Count();
 
                 //--------------- lowpoint basin on the left ------------------------------
 
@@ -242,10 +255,10 @@ namespace AOCD9
                 //----------------lowpoint basin on down-----------------------------------
 
                 result.AddRange(GetLowPointsBasinDown(matrix, x, y));
-                int tempresult = result.Count - resultcount;
-                resultCount[point] = tempresult + 1;
 
-                //resultCount[point] = 
+
+                int tempresult = result.Distinct().Count() - resultcount;
+                resultCount[point] = tempresult + 1;
             }
             return resultCount;
         }
@@ -260,7 +273,6 @@ namespace AOCD9
             {
                 var x = point.CoordX;
                 var y = point.CoordY;
-                int resultcount = result.Count;
 
                 //--------------- lowpoint basin on the left ------------------------------
 
@@ -276,10 +288,8 @@ namespace AOCD9
                 //----------------lowpoint basin on down-----------------------------------
 
                 result.AddRange(GetLowPointsBasinDown(matrix, x, y));
-                int tempresult = result.Count-resultcount;
-                resultCount[point] = tempresult+1;
 
-                //resultCount[point] = 
+                
             }
             return result;
         }
