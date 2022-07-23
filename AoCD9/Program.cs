@@ -45,7 +45,7 @@ namespace AOCD9
         public static void Main()
         {
 
-            var stringArray = ConvertInputToStringArray("input.txt");
+            var stringArray = ConvertInputToStringArray("sample.txt");
             var matrix = SetMatrix(stringArray);
             PrintMatrix(matrix);
             var lowPoints = GetLowPoints(matrix);
