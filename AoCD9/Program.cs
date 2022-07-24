@@ -32,10 +32,7 @@ namespace AOCD9
         }
         public override int GetHashCode()
         {
-            int hash = 13;
-            hash = (hash * 7) + CoordX.GetHashCode();
-            hash = (hash * 7) + CoordY.GetHashCode();
-            return hash;
+            return HashCode.Combine(CoordX, CoordY);
         }
 
     }
@@ -57,8 +54,8 @@ namespace AOCD9
                 Console.Write($"Coordinates of the Low Points {item.PointValue}: ");
                 Console.WriteLine(item.CoordX.ToString()+" "+ item.CoordY.ToString());
             }
-            var basinPoints = GetBasinPoints(matrix, lowPoints).Distinct().ToList();
-            var countBasin = CountBasin(matrix, lowPoints).Distinct().ToDictionary(t => t.Key, t => t.Value);
+            var basinPoints = GetBasinPoints(matrix, lowPoints);
+            var countBasin = CountBasin(matrix, lowPoints).ToDictionary(t => t.Key, t => t.Value);
             Console.WriteLine();
 
             foreach (var item in basinPoints)
@@ -71,10 +68,10 @@ namespace AOCD9
                 Console.WriteLine($"LowPoint {item.Key.PointValue} has a basin of ---> {item.Value} elements");
 
             }
-
+            
             Console.WriteLine($"Total low basin points excluding lowpoints: {basinPoints.Count}");
             var top3 = countBasin.OrderByDescending(o => o.Value).Take(3).Select(x => x.Value).ToList();
-            long finalResult=1;
+            long finalResult = 1;
             foreach (var item in top3)
             {
                 finalResult *= item;
@@ -136,34 +133,32 @@ namespace AOCD9
         }
 
 
-        public static List<Points> GetLowPointsBasinLeft(int[,] matrix, int x, int y)
+        public static HashSet<Points> GetLowPointsBasinLeft(int[,] matrix, int x, int y)
         {
-            List<Points> result = new List<Points>();
+            HashSet<Points> result = new HashSet<Points>();
             var left = y - 1;
             int xInitialState = x;
             int yInitialState = y;
             if (y > 0)
                 left = y - 1;
             else left = y;
-            while (matrix[x, left] != 9 && left >= 0)
+            while (matrix[x, left] != 9)
             {
-                if (matrix[x, left] > matrix[x, y] || matrix[x, left] != 9)
-                {
-                    result.Add(new Points(matrix[xInitialState, yInitialState], x, left));
-                    result.AddRange(GetLowPointsBasinDown(matrix,x,left));
-                    result.AddRange(GetLowPointsBasinUp(matrix,x,left));
-
-                }
+                    
+                    result.Add(new Points(matrix[x, left], x, left));
+                    result.UnionWith(GetLowPointsBasinDown(matrix,x,left));
+                    result.UnionWith(GetLowPointsBasinUp(matrix,x,left));
 
                 if (left == 0 || y == 0) break;
                     else { left--; y--; }
             }
-            return result;
+            return result.ToHashSet();
         }
 
-        public static List<Points> GetLowPointsBasinRight(int[,] matrix, int x, int y)
+
+        public static HashSet<Points> GetLowPointsBasinRight(int[,] matrix, int x, int y)
         {
-            List<Points> result = new List<Points>();
+            HashSet<Points> result = new HashSet<Points>();
             var right = y + 1;
             int xInitialState = x;
             int yInitialState = y;
@@ -171,94 +166,93 @@ namespace AOCD9
                 right = y + 1;
             else right = y;
 
-            while (matrix[x, right] != 9 && right <= matrix.GetLength(1) - 1)
+            while (matrix[x, right] != 9)
             {
-                if (matrix[x, right] > matrix[x, y])
-                {
-                    result.Add(new Points(matrix[xInitialState, yInitialState], x, right));
-                    result.AddRange(GetLowPointsBasinDown(matrix, x, right));
-                    result.AddRange(GetLowPointsBasinUp(matrix, x, right));
-                }
+                result.Add(new Points(matrix[x, right], x, right));
+                result.UnionWith(GetLowPointsBasinDown(matrix, x, right));
+                result.UnionWith(GetLowPointsBasinUp(matrix, x, right));
+
                 if (right == matrix.GetLength(1) - 1 || y == matrix.GetLength(1) - 1) break;
                 else { right++; y++; }
             }
-            return result;
+            return result.ToHashSet();
         }
 
-        public static List<Points> GetLowPointsBasinUp(int[,] matrix, int x, int y)
+
+
+        public static HashSet<Points> GetLowPointsBasinUp(int[,] matrix, int x, int y)
         {
-            List<Points> result = new List<Points>();
+            HashSet<Points> result = new HashSet<Points>();
             int up = x - 1;
             int xInitialState = x;
             int yInitialState = y;
             if (x > 0)
                 up = x - 1;
             else up = x;
-            while (matrix[up, y] != 9 && up >= 0)
+            while (matrix[up, y] != 9)
             {
-                if (matrix[up, y] > matrix[x, y])
-                {
-                    result.Add(new Points(matrix[xInitialState, yInitialState], up, y)); //lowPointsBasin on the top
-                    result.AddRange(GetLowPointsBasinLeft(matrix, up, y));
-                    result.AddRange(GetLowPointsBasinRight(matrix, up, y));
-                }
+                    result.Add(new Points(matrix[up, y], up, y)); //lowPointsBasin on the top
+                    
+                    result.UnionWith(GetLowPointsBasinLeft(matrix, up, y));
+                    //result.UnionWith(GetLowPointsBasinRight2(matrix, up, y));
+
                 if (up == 0 || x == 0) break;
                 else { up--; x--; }
             }
-            return result;
+            return result.ToHashSet();
         }
 
-        public static List<Points> GetLowPointsBasinDown(int[,] matrix, int x, int y)
+        public static HashSet<Points> GetLowPointsBasinDown(int[,] matrix, int x, int y)
         {
-            List<Points> result = new List<Points>();
+            HashSet<Points> result = new HashSet<Points>();
             int down = x + 1;
             int xInitialState = x;
             int yInitialState = y;
             if (x < matrix.GetLength(0) - 1)
                 down = x + 1;
             else down = x;
-            while (matrix[down, y] != 9 && down <= matrix.GetLength(0) - 1)
+            while (matrix[down, y] != 9)
             {
-                if (matrix[down, y] > matrix[x, y])
-                {
-                    result.Add(new Points(matrix[xInitialState, yInitialState], down, y)); //lowPointsBasin on the bottom
-                    result.AddRange(GetLowPointsBasinLeft(matrix, down, y));
-                    result.AddRange(GetLowPointsBasinRight(matrix, down, y));
-                }
+                    result.Add(new Points(matrix[down, y], down, y)); //lowPointsBasin on the bottom
+                    //result.UnionWith(GetLowPointsBasinLeft(matrix, down, y));
+                    //result.UnionWith(GetLowPointsBasinRight2(matrix, down, y));
+
                 if (down == matrix.GetLength(0) - 1 || x == matrix.GetLength(0) - 1) break;
                 else { down++; x++; }
             }
-            return result;
+            return result.ToHashSet();
         }
+
+      
 
         public static Dictionary<Points,int> CountBasin(int[,] matrix, List<Points> lowPoints)  //exluding lowpoints
         {
-            List<Points> result = new List<Points>();
+            HashSet<Points> result = new ();
             Dictionary<Points, int> resultCount = new Dictionary<Points, int>();
             foreach (var point in lowPoints)
             {
                 int x = point.CoordX;
                 int y = point.CoordY;
-                int resultcount = result.Distinct().Count();
+                int count = result.Count();
 
                 //--------------- lowpoint basin on the left ------------------------------
 
-                result.AddRange(GetLowPointsBasinLeft(matrix, x, y));
+                result.UnionWith(GetLowPointsBasinLeft(matrix, x, y).ToList());
 
                 //----------------lowpoint basin on the right------------------------------
-                result.AddRange(GetLowPointsBasinRight(matrix, x, y));
+                result.UnionWith(GetLowPointsBasinRight(matrix, x, y).ToList());
 
                 //----------------lowpoint basin on up-------------------------------------
 
-                result.AddRange(GetLowPointsBasinUp(matrix, x, y));
+                result.UnionWith(GetLowPointsBasinUp(matrix, x, y).ToList());
 
                 //----------------lowpoint basin on down-----------------------------------
 
-                result.AddRange(GetLowPointsBasinDown(matrix, x, y));
+                result.UnionWith(GetLowPointsBasinDown(matrix, x, y).ToList());
 
 
-                int tempresult = result.Distinct().Count() - resultcount;
-                resultCount[point] = tempresult + 1;
+                int tempresultCount = result.Count() - count;
+                resultCount[point] = tempresultCount;
             }
             return resultCount;
         }
